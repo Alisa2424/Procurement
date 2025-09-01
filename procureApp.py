@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -223,11 +223,6 @@ def main():
     with tabs[0]:
         st.subheader("📊 Dashboard")
         st.write("Overview and summary information can be displayed here.")
-        fig_dist = px.histogram(scored_df, x='sustainability_score', nbins=20, title="Sustainability Score Distribution")
-        st.plotly_chart(fig_dist, use_container_width=True)
-        industry_scores = scored_df.groupby('industry')['sustainability_score'].mean().reset_index()
-        fig_industry = px.bar(industry_scores, x='industry', y='sustainability_score', title="Average Sustainability Score by Industry")
-        st.plotly_chart(fig_industry, use_container_width=True)
 
     with tabs[1]:
         st.subheader("🏆 Rankings")
@@ -271,7 +266,13 @@ def main():
 
     with tabs[2]:
         st.subheader("📈 Trends")
-        # Add more detailed trends if desired, or leave empty
+        # Add plots to Trends tab: sustainability score distribution and industry average scores
+        fig_dist = px.histogram(scored_df, x='sustainability_score', nbins=20, title="Sustainability Score Distribution")
+        st.plotly_chart(fig_dist, use_container_width=True)
+
+        industry_scores = scored_df.groupby('industry')['sustainability_score'].mean().reset_index()
+        fig_industry = px.bar(industry_scores, x='industry', y='sustainability_score', title="Average Sustainability Score by Industry")
+        st.plotly_chart(fig_industry, use_container_width=True)
 
     with tabs[3]:
         st.subheader("🔮 Scenario Simulation")
