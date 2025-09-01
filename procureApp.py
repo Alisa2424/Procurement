@@ -81,7 +81,6 @@ def main():
     st.markdown("An AI-powered tool for evaluating and comparing suppliers based on sustainability metrics.")
 
     uploaded_file = st.file_uploader("Upload your supplier CSV file", type=["csv"])
-    use_sample_data = st.checkbox("Use sample data instead", value=False)
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
@@ -99,16 +98,12 @@ def main():
             if col not in df.columns:
                 df[col] = default
         st.success("Data loaded from uploaded file.")
-    elif use_sample_data:
-        df = generate_sample_data()
-        st.info("Using generated sample data.")
     else:
-        st.warning("Upload a supplier CSV file or tick 'Use sample data' to continue.")
+        st.warning("Upload a supplier CSV file to continue.")
         return
 
     cert_cols = ['ISO_22000', 'ISO_14001', 'Fair_Trade', 'B_Corp', 'Organic']
 
-    # Sidebar filters
     st.sidebar.header("Filters")
     st.sidebar.subheader("Certifications")
     cert_filters = {}
@@ -167,12 +162,12 @@ def main():
     filtered_df = filtered_df[filtered_df['location'].isin(locations)]
 
     filtered_df = filtered_df[
-        (filtered_df['lead_time_days'] >= min_lead_time) &
-        (filtered_df['lead_time_days'] <= max_lead_time) &
-        (filtered_df['onboarding_cost_usd'] >= min_onboarding_cost) &
-        (filtered_df['onboarding_cost_usd'] <= max_onboarding_cost) &
-        (filtered_df['switching_cost_usd'] >= min_switching_cost) &
-        (filtered_df['switching_cost_usd'] <= max_switching_cost)
+        (filtered_df['lead_time_days'] >= min_lead_time)
+        & (filtered_df['lead_time_days'] <= max_lead_time)
+        & (filtered_df['onboarding_cost_usd'] >= min_onboarding_cost)
+        & (filtered_df['onboarding_cost_usd'] <= max_onboarding_cost)
+        & (filtered_df['switching_cost_usd'] >= min_switching_cost)
+        & (filtered_df['switching_cost_usd'] <= max_switching_cost)
     ]
 
     scored_df = calculate_scores(filtered_df, weights)
@@ -227,14 +222,11 @@ def main():
     with tabs[0]:
         st.subheader("📊 Dashboard")
 
-        # Graph 1: Sustainability score distribution (histogram)
         fig1 = px.histogram(scored_df, x='sustainability_score', nbins=20, title='Sustainability Score Distribution')
 
-        # Graph 2: Average sustainability score by industry (bar chart)
         industry_scores = scored_df.groupby('industry')['sustainability_score'].mean().reset_index()
         fig2 = px.bar(industry_scores, x='industry', y='sustainability_score', title='Average Sustainability Score by Industry')
 
-        # Graph 3: Heatmap of correlation matrix of numeric sustainability metrics
         numeric_cols = ['carbon_footprint', 'recycling_rate', 'energy_efficiency', 'water_usage', 'waste_production', 'sustainability_score']
         corr = scored_df[numeric_cols].corr()
         fig3 = px.imshow(corr, text_auto=True, aspect="auto", title='Correlation Heatmap of Sustainability Metrics', color_continuous_scale='RdBu_r')
@@ -288,11 +280,9 @@ def main():
     with tabs[2]:
         st.subheader("📈 Trends")
 
-        # New Graph 1: Box plot - Carbon Footprint by Industry
         fig4 = px.box(scored_df, x='industry', y='carbon_footprint', title='Carbon Footprint Distribution by Industry')
         st.plotly_chart(fig4, use_container_width=True)
 
-        # New Graph 2: Line Chart - Average Lead Time by Industry
         lead_time_avg = scored_df.groupby('industry')['lead_time_days'].mean().reset_index()
         fig5 = px.line(lead_time_avg, x='industry', y='lead_time_days', title='Average Lead Time by Industry', markers=True)
         st.plotly_chart(fig5, use_container_width=True)
@@ -309,7 +299,6 @@ def main():
             current = scored_df[scored_df['name'] == current_supplier].iloc[0]
             alternative = scored_df[scored_df['name'] == alternative_supplier].iloc[0]
 
-            # Environmental Impact Comparison
             impact_diff = {
                 'Carbon Footprint': alternative['carbon_footprint'] - current['carbon_footprint'],
                 'Water Usage': alternative['water_usage'] - current['water_usage'],
@@ -325,7 +314,6 @@ def main():
             fig6.update_layout(barmode='group', title_text="Environmental Impact Comparison")
             st.plotly_chart(fig6, use_container_width=True)
 
-            # Improvements / Declines Summary
             improvements = []
             declines = []
             for metric, diff in impact_diff.items():
@@ -346,17 +334,21 @@ def main():
             else:
                 st.warning("Recommendation: Mixed impact - consider other factors")
 
-            # Additional Switching Cost Analysis
-            st.subheader("💰 Cost Analysis for Switching Supplier")
-            cost_diff = alternative['switching_cost_usd'] + alternative['cost_element'] - (current['switching_cost_usd'] + current['cost_element'])
-            st.write(f"Total Switching Cost plus Cost Element difference: ${cost_diff:,.2f}")
+            # Cost summary below environmental impact
+            st.subheader("Switching Cost and Cost Element Comparison")
 
+            current_total_cost = current['switching_cost_usd'] + current['cost_element']
+            alternative_total_cost = alternative['switching_cost_usd'] + alternative['cost_element']
+            cost_diff = alternative_total_cost - current_total_cost
+
+            st.write(f"Current Supplier Total Cost (Switching + Cost Element): ${current_total_cost:,.2f}")
+            st.write(f"Alternative Supplier Total Cost (Switching + Cost Element): ${alternative_total_cost:,.2f}")
             if cost_diff < 0:
-                st.success("Switching supplier is expected to reduce net costs")
+                st.success(f"Switching saves approximately ${abs(cost_diff):,.2f} in total costs.")
             elif cost_diff > 0:
-                st.warning("Switching supplier will increase net costs")
+                st.error(f"Switching will cost approximately ${cost_diff:,.2f} more in total costs.")
             else:
-                st.info("Switching supplier has no net cost difference")
+                st.info("No difference in total costs by switching supplier.")
 
         elif current_supplier == alternative_supplier:
             st.warning("Please select different suppliers for comparison")
