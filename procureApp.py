@@ -233,15 +233,48 @@ def main():
         st.subheader("🏆 Rankings")
         st.dataframe(
             top_suppliers[
-                ['name', 'industry', 'location', 'sustainability_score', 'cert_count', 'carbon_footprint',
-                 'cost_element', 'onboarding_cost_usd', 'lead_time_days', 'switching_cost_usd']
+                [
+                    'name', 'industry', 'location', 'sustainability_score', 'cert_count',
+                    'carbon_footprint', 'cost_element', 'onboarding_cost_usd',
+                    'lead_time_days', 'switching_cost_usd'
+                ]
             ],
-            use_container_width=True
+            use_container_width=True,
         )
+        
+        # Supplier Details only in Rankings tab
+        st.header("Supplier Details")
+        selected_supplier = st.selectbox("Select a supplier to view details", options=top_suppliers['name'].tolist())
+        if selected_supplier:
+            supplier_data = scored_df[scored_df['name'] == selected_supplier].iloc[0]
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("Sustainability Metrics")
+                metrics = {
+                    'Carbon Footprint': supplier_data['carbon_footprint'],
+                    'Recycling Rate': supplier_data['recycling_rate'],
+                    'Energy Efficiency': supplier_data['energy_efficiency'],
+                    'Water Usage': supplier_data['water_usage'],
+                    'Waste Production': supplier_data['waste_production'],
+                    'Cost Element': supplier_data['cost_element'],
+                    'Onboarding Cost': supplier_data['onboarding_cost_usd'],
+                    'Lead Time (days)': supplier_data['lead_time_days'],
+                    'Switching Cost': supplier_data['switching_cost_usd'],
+                }
+                for metric, value in metrics.items():
+                    st.metric(metric, f"{value:.2f}")
+            with col2:
+                st.subheader("Certifications")
+                certs = [cert.replace('_', ' ') for cert in cert_cols if supplier_data[cert] == 1]
+                if certs:
+                    for cert in certs:
+                        st.success(cert)
+                else:
+                    st.warning("No certifications")
 
     with tabs[2]:
         st.subheader("📈 Trends")
-        # You may add other plots here if desired or leave empty
+        # Placeholder for extra trend charts (optional)
 
     with tabs[3]:
         st.subheader("🔮 Scenario Simulation")
@@ -250,13 +283,13 @@ def main():
             current_supplier = st.selectbox(
                 "Current Supplier",
                 options=scored_df['name'].tolist(),
-                key="current"
+                key="current",
             )
         with col2:
             alternative_supplier = st.selectbox(
                 "Alternative Supplier",
                 options=scored_df['name'].tolist(),
-                key="alternative"
+                key="alternative",
             )
         if current_supplier and alternative_supplier and current_supplier != alternative_supplier:
             current = scored_df[scored_df['name'] == current_supplier].iloc[0]
@@ -264,22 +297,26 @@ def main():
             impact_diff = {
                 'Carbon Footprint': alternative['carbon_footprint'] - current['carbon_footprint'],
                 'Water Usage': alternative['water_usage'] - current['water_usage'],
-                'Waste Production': alternative['waste_production'] - current['waste_production']
+                'Waste Production': alternative['waste_production'] - current['waste_production'],
             }
             st.subheader("Environmental Impact Comparison")
             fig = go.Figure()
-            fig.add_trace(go.Bar(
-                name='Current',
-                x=list(impact_diff.keys()),
-                y=[current['carbon_footprint'], current['water_usage'], current['waste_production']],
-                marker_color='blue'
-            ))
-            fig.add_trace(go.Bar(
-                name='Alternative',
-                x=list(impact_diff.keys()),
-                y=[alternative['carbon_footprint'], alternative['water_usage'], alternative['waste_production']],
-                marker_color='green'
-            ))
+            fig.add_trace(
+                go.Bar(
+                    name='Current',
+                    x=list(impact_diff.keys()),
+                    y=[current['carbon_footprint'], current['water_usage'], current['waste_production']],
+                    marker_color='blue',
+                )
+            )
+            fig.add_trace(
+                go.Bar(
+                    name='Alternative',
+                    x=list(impact_diff.keys()),
+                    y=[alternative['carbon_footprint'], alternative['water_usage'], alternative['waste_production']],
+                    marker_color='green',
+                )
+            )
             fig.update_layout(barmode='group', title_text="Environmental Impact Comparison")
             st.plotly_chart(fig, use_container_width=True)
             improvements = []
@@ -302,34 +339,6 @@ def main():
         elif current_supplier == alternative_supplier:
             st.warning("Please select different suppliers for comparison")
 
-    st.header("Supplier Details")
-    selected_supplier = st.selectbox("Select a supplier to view details", options=top_suppliers['name'].tolist())
-    if selected_supplier:
-        supplier_data = scored_df[scored_df['name'] == selected_supplier].iloc[0]
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Sustainability Metrics")
-            metrics = {
-                'Carbon Footprint': supplier_data['carbon_footprint'],
-                'Recycling Rate': supplier_data['recycling_rate'],
-                'Energy Efficiency': supplier_data['energy_efficiency'],
-                'Water Usage': supplier_data['water_usage'],
-                'Waste Production': supplier_data['waste_production'],
-                'Cost Element': supplier_data['cost_element'],
-                'Onboarding Cost': supplier_data['onboarding_cost_usd'],
-                'Lead Time (days)': supplier_data['lead_time_days'],
-                'Switching Cost': supplier_data['switching_cost_usd']
-            }
-            for metric, value in metrics.items():
-                st.metric(metric, f"{value:.2f}")
-        with col2:
-            st.subheader("Certifications")
-            certs = [cert.replace('_', ' ') for cert in cert_cols if supplier_data[cert] == 1]
-            if certs:
-                for cert in certs:
-                    st.success(cert)
-            else:
-                st.warning("No certifications")
 
 if __name__ == "__main__":
     main()
