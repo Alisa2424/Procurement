@@ -39,7 +39,6 @@ def generate_sample_data(num_suppliers=50):
         pass
     return df
 
-
 @st.cache_data
 def load_data():
     try:
@@ -48,9 +47,7 @@ def load_data():
         df = generate_sample_data()
     return df
 
-
 def calculate_sustainability_score(row, weights):
-    # Safety: Only sum certs that exist in row, else ignore
     cert_cols = ['ISO_22000', 'ISO_14001', 'Fair_Trade', 'B_Corp', 'Organic']
     existing_certs = [cert for cert in cert_cols if cert in row.index]
     cert_score = 0
@@ -73,16 +70,13 @@ def calculate_sustainability_score(row, weights):
     )
     return round(score * 100, 2)
 
-
 def calculate_scores(df, weights):
     df['sustainability_score'] = df.apply(lambda row: calculate_sustainability_score(row, weights), axis=1)
     return df.sort_values('sustainability_score', ascending=False)
 
-
 def normalize_column(col, ascending=True):
     norm = (col - col.min()) / (col.max() - col.min())
     return norm if ascending else 1 - norm
-
 
 def main():
     st.title("🌱 Sustainable Supplier Selection Tool")
@@ -93,8 +87,6 @@ def main():
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
-
-        # Add any missing certification or cost columns with defaults
         cert_cols = ['ISO_22000', 'ISO_14001', 'Fair_Trade', 'B_Corp', 'Organic']
         num_cols_defaults = {
             'cost_element': df['cost_element'].median() if 'cost_element' in df.columns else 5000,
@@ -108,7 +100,6 @@ def main():
         for col, default in num_cols_defaults.items():
             if col not in df.columns:
                 df[col] = default
-
         st.success("Data loaded from uploaded file.")
     elif use_sample_data:
         df = generate_sample_data()
@@ -119,7 +110,6 @@ def main():
 
     cert_cols = ['ISO_22000', 'ISO_14001', 'Fair_Trade', 'B_Corp', 'Organic']
 
-    # Sidebar filters
     st.sidebar.header("Filters")
     st.sidebar.subheader("Certifications")
     cert_filters = {}
@@ -169,12 +159,10 @@ def main():
     if abs(total_weight - 1.0) > 0.01:
         st.sidebar.warning(f"Weights sum to {total_weight:.2f} (should sum to 1.0)")
 
-    # Filter dataframe
     filtered_df = df.copy()
     for cert, include in cert_filters.items():
         if not include:
             filtered_df = filtered_df[filtered_df[cert] == 0]
-
     filtered_df = filtered_df[filtered_df['industry'].isin(industries)]
     filtered_df = filtered_df[filtered_df['location'].isin(locations)]
     filtered_df = filtered_df[
@@ -189,7 +177,6 @@ def main():
     scored_df = calculate_scores(filtered_df, weights)
     scored_df['cert_count'] = scored_df[cert_cols].sum(axis=1)
 
-    # Ranking
     st.sidebar.subheader("Rank suppliers by:")
     ranking_criteria = st.sidebar.selectbox(
         "Ranking Criteria",
@@ -231,45 +218,30 @@ def main():
 
     top_suppliers = sorted_df.head(10)
 
-    # Tabs display
     tabs = st.tabs(["📊 Dashboard", "🏆 Rankings", "📈 Trends", "🔮 Scenario Simulation"])
 
     with tabs[0]:
         st.subheader("📊 Dashboard")
         st.write("Overview and summary information can be displayed here.")
+        fig_dist = px.histogram(scored_df, x='sustainability_score', nbins=20, title="Sustainability Score Distribution")
+        st.plotly_chart(fig_dist, use_container_width=True)
+        industry_scores = scored_df.groupby('industry')['sustainability_score'].mean().reset_index()
+        fig_industry = px.bar(industry_scores, x='industry', y='sustainability_score', title="Average Sustainability Score by Industry")
+        st.plotly_chart(fig_industry, use_container_width=True)
 
     with tabs[1]:
         st.subheader("🏆 Rankings")
         st.dataframe(
             top_suppliers[
-                [
-                    'name',
-                    'industry',
-                    'location',
-                    'sustainability_score',
-                    'cert_count',
-                    'carbon_footprint',
-                    'cost_element',
-                    'onboarding_cost_usd',
-                    'lead_time_days',
-                    'switching_cost_usd',
-                ]
+                ['name', 'industry', 'location', 'sustainability_score', 'cert_count', 'carbon_footprint',
+                 'cost_element', 'onboarding_cost_usd', 'lead_time_days', 'switching_cost_usd']
             ],
-            use_container_width=True,
+            use_container_width=True
         )
 
     with tabs[2]:
         st.subheader("📈 Trends")
-        col2, col3 = st.columns(2)
-        with col2:
-            fig1 = px.histogram(scored_df, x='sustainability_score', title="Sustainability Score Distribution")
-            st.plotly_chart(fig1, use_container_width=True)
-        with col3:
-            industry_scores = (
-                scored_df.groupby('industry')['sustainability_score'].mean().reset_index()
-            )
-            fig2 = px.bar(industry_scores, x='industry', y='sustainability_score', title="Average Sustainability Score by Industry")
-            st.plotly_chart(fig2, use_container_width=True)
+        # You may add other plots here if desired or leave empty
 
     with tabs[3]:
         st.subheader("🔮 Scenario Simulation")
@@ -278,44 +250,38 @@ def main():
             current_supplier = st.selectbox(
                 "Current Supplier",
                 options=scored_df['name'].tolist(),
-                key="current",
+                key="current"
             )
         with col2:
             alternative_supplier = st.selectbox(
                 "Alternative Supplier",
                 options=scored_df['name'].tolist(),
-                key="alternative",
+                key="alternative"
             )
         if current_supplier and alternative_supplier and current_supplier != alternative_supplier:
             current = scored_df[scored_df['name'] == current_supplier].iloc[0]
             alternative = scored_df[scored_df['name'] == alternative_supplier].iloc[0]
-
             impact_diff = {
                 'Carbon Footprint': alternative['carbon_footprint'] - current['carbon_footprint'],
                 'Water Usage': alternative['water_usage'] - current['water_usage'],
-                'Waste Production': alternative['waste_production'] - current['waste_production'],
+                'Waste Production': alternative['waste_production'] - current['waste_production']
             }
             st.subheader("Environmental Impact Comparison")
             fig = go.Figure()
-            fig.add_trace(
-                go.Bar(
-                    name='Current',
-                    x=list(impact_diff.keys()),
-                    y=[current['carbon_footprint'], current['water_usage'], current['waste_production']],
-                    marker_color='blue',
-                )
-            )
-            fig.add_trace(
-                go.Bar(
-                    name='Alternative',
-                    x=list(impact_diff.keys()),
-                    y=[alternative['carbon_footprint'], alternative['water_usage'], alternative['waste_production']],
-                    marker_color='green',
-                )
-            )
+            fig.add_trace(go.Bar(
+                name='Current',
+                x=list(impact_diff.keys()),
+                y=[current['carbon_footprint'], current['water_usage'], current['waste_production']],
+                marker_color='blue'
+            ))
+            fig.add_trace(go.Bar(
+                name='Alternative',
+                x=list(impact_diff.keys()),
+                y=[alternative['carbon_footprint'], alternative['water_usage'], alternative['waste_production']],
+                marker_color='green'
+            ))
             fig.update_layout(barmode='group', title_text="Environmental Impact Comparison")
             st.plotly_chart(fig, use_container_width=True)
-
             improvements = []
             declines = []
             for metric, diff in impact_diff.items():
@@ -336,7 +302,6 @@ def main():
         elif current_supplier == alternative_supplier:
             st.warning("Please select different suppliers for comparison")
 
-    # Supplier Details outside tabs for quick access
     st.header("Supplier Details")
     selected_supplier = st.selectbox("Select a supplier to view details", options=top_suppliers['name'].tolist())
     if selected_supplier:
@@ -353,7 +318,7 @@ def main():
                 'Cost Element': supplier_data['cost_element'],
                 'Onboarding Cost': supplier_data['onboarding_cost_usd'],
                 'Lead Time (days)': supplier_data['lead_time_days'],
-                'Switching Cost': supplier_data['switching_cost_usd'],
+                'Switching Cost': supplier_data['switching_cost_usd']
             }
             for metric, value in metrics.items():
                 st.metric(metric, f"{value:.2f}")
@@ -365,7 +330,6 @@ def main():
                     st.success(cert)
             else:
                 st.warning("No certifications")
-
 
 if __name__ == "__main__":
     main()
